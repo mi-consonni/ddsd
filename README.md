@@ -1,6 +1,6 @@
 # ddsd
 
-Safely flash SD card images with progress indication
+Safely flash SD card images with progress indication (fork of https://github.com/nachoparker/ddsd/)
 
 ![Example](resources/ddsd.gif)
 
