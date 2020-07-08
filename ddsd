@@ -35,22 +35,34 @@ ddsd()
   local OF="$2"
 
   # checks
-  type pv &>/dev/null || { echo "install pv first"    ; return 1; }
-  [[ $# -ne 2 ]] && { print_usage                     ; return 1; }
-  [[ -f "$IF" ]] || { echo "$IF does not exist"       ; return 1; }
-  [[ -e "$OF" ]] || { echo "$OF does not exist"       ; return 1; }
+  type pv &>/dev/null || { echo "install pv first"; return 1; }
+  [[ $# -ne 2 ]] && { print_usage; return 1; }
+  [[ -f "$IF" || "$IF" == "-" ]] || { echo "$IF does not exist"; return 1; }
+  [[ -e "$OF" ]] || { echo "$OF does not exist"; return 1; }
   [[ -b "$OF" ]] || { echo "$OF is not a block device"; return 1; }
   awk '{ print $1 }' /proc/mounts | grep -q "$OF" && { echo "$OF is currently mounted"; return 1; }
 
+  # Create a fifo for stdin redirection
+  FIFO=$(mktemp -u)
+  mkfifo $FIFO
+
   # CTRL-C trap
-  cancel() { echo "cancelling..."; kill $PID; wait $PID; exit 1; }
-  trap cancel SIGINT
+  cancel() {
+    echo "cancelling..."
+    kill $PID
+    wait $PID
+    rm $FIFO
+    exit 1
+  }
+  trap cancel SIGINT SIGTERM
 
   # flashing
   echo "flashing..."
-  pv $ARG "$IF" > "$OF" &
+  pv $ARG "$IF" > "$OF" < $FIFO &
   PID=$!
+  cat - > $FIFO
   wait $PID || return 1
+  rm $FIFO
 
   # syncing
   echo -n "syncing... " && sync && echo "done"
